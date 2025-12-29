@@ -1,0 +1,239 @@
+// ===== SEARCH FUNCTIONALITY =====
+// Product search and URL lookup system
+
+// ===== STORED URLS =====
+let submittedUrls = [];
+
+function loadUrls() {
+  try {
+    const data = localStorage.getItem('submittedUrls');
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveUrls(urls) {
+  localStorage.setItem('submittedUrls', JSON.stringify(urls));
+}
+
+// ===== TAB SWITCHING =====
+function switchSearchTab(tabName) {
+  const tabs = document.querySelectorAll('[id$="-tab"]');
+  const buttons = document.querySelectorAll('.search-tab-btn');
+  
+  tabs.forEach(tab => tab.style.display = 'none');
+  buttons.forEach(btn => btn.classList.remove('active'));
+  
+  const activeTab = document.getElementById(tabName + '-tab');
+  if (activeTab) {
+    activeTab.style.display = 'block';
+  }
+  
+  const activeBtn = Array.from(buttons).find(btn => 
+    btn.textContent.toLowerCase().includes(tabName)
+  );
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+}
+
+// ===== SEARCH HANDLER =====
+function searchProducts() {
+  const query = document.getElementById('product-search').value.trim();
+  
+  if (!query) {
+    alert('Please enter a product name or keyword');
+    return;
+  }
+  
+  displaySearching();
+  
+  // Simulate search with delay
+  setTimeout(() => {
+    const results = getSearchResults(query);
+    displaySearchResults(results, query);
+  }, 1000);
+}
+
+function handleSearchEnter(event) {
+  if (event.key === 'Enter') {
+    searchProducts();
+  }
+}
+
+// ===== MOCK SEARCH RESULTS =====
+function getSearchResults(query) {
+  const mockData = {
+    'wireless earbuds': [
+      {
+        title: 'Premium Wireless Earbuds Pro',
+        url: 'https://www.ebay.com/itm/wireless-earbuds-pro',
+        desc: 'High-quality wireless earbuds with noise cancellation, 30-hour battery life'
+      },
+      {
+        title: 'Bluetooth Earbuds 5.0',
+        url: 'https://aliexpress.com/item/bluetooth-earbuds',
+        desc: 'Compact design, water resistant, premium sound quality'
+      },
+      {
+        title: 'Daraz Wireless Earbuds',
+        url: 'https://www.daraz.lk/products/wireless-earbuds',
+        desc: 'Affordable wireless earbuds for daily use'
+      }
+    ],
+    'usb cable': [
+      {
+        title: 'Fast Charging USB-C Cable 2m',
+        url: 'https://www.ebay.com/itm/usb-c-cable',
+        desc: 'High-speed charging and data transfer cable'
+      },
+      {
+        title: 'USB 3.0 Cable 3-Pack',
+        url: 'https://aliexpress.com/item/usb-cable-3pack',
+        desc: 'Durable and reliable USB cables'
+      }
+    ],
+    'laptop': [
+      {
+        title: 'Gaming Laptop RTX 3060',
+        url: 'https://www.ebay.com/itm/gaming-laptop',
+        desc: 'Powerful gaming laptop with latest specs'
+      },
+      {
+        title: 'Budget Laptop 15.6 inch',
+        url: 'https://aliexpress.com/item/budget-laptop',
+        desc: 'Affordable laptop for work and study'
+      }
+    ]
+  };
+  
+  const lowerQuery = query.toLowerCase();
+  for (const key in mockData) {
+    if (lowerQuery.includes(key) || key.includes(lowerQuery)) {
+      return mockData[key];
+    }
+  }
+  
+  // Default results if no match
+  return [
+    {
+      title: 'Product: ' + query,
+      url: 'https://ebay.com/search?_nkw=' + encodeURIComponent(query),
+      desc: 'Search result for ' + query + ' on eBay'
+    },
+    {
+      title: 'Product: ' + query,
+      url: 'https://aliexpress.com/wholesale?SearchText=' + encodeURIComponent(query),
+      desc: 'Search result for ' + query + ' on AliExpress'
+    }
+  ];
+}
+
+function displaySearching() {
+  const resultsEl = document.getElementById('product-results');
+  resultsEl.className = 'search-results show';
+  resultsEl.innerHTML = `<div class="loading"><div class="loading-spinner"></div> Searching...</div>`;
+}
+
+function displaySearchResults(results, query) {
+  const resultsEl = document.getElementById('product-results');
+  const contentEl = document.getElementById('results-content');
+  
+  if (results.length === 0) {
+    contentEl.innerHTML = `
+      <div class="no-results">
+        <div class="no-results-icon">🔍</div>
+        <p>No results found for "${query}"</p>
+      </div>
+    `;
+  } else {
+    let html = '<h3 style="margin-top: 0; color: #333;">Found ' + results.length + ' results for "' + query + '"</h3>';
+    results.forEach(result => {
+      html += `
+        <div class="result-item">
+          <div class="result-title">${result.title}</div>
+          <div class="result-url"><a href="${result.url}" target="_blank">${result.url}</a></div>
+          <div class="result-desc">${result.desc}</div>
+        </div>
+      `;
+    });
+    contentEl.innerHTML = html;
+  }
+  
+  resultsEl.className = 'search-results show';
+}
+
+// ===== URL SUBMISSION HANDLER =====
+function handleURLSubmit(event) {
+  event.preventDefault();
+  
+  const url = document.getElementById('product-url').value.trim();
+  const title = document.getElementById('product-title').value.trim();
+  const notes = document.getElementById('product-notes').value.trim();
+  
+  if (!url) {
+    alert('Please enter a valid URL');
+    return;
+  }
+  
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch {
+    alert('Invalid URL format');
+    return;
+  }
+  
+  // Save URL
+  const urlEntry = {
+    id: 'url_' + Date.now(),
+    url: url,
+    title: title || extractDomain(url),
+    notes: notes,
+    submittedAt: new Date().toLocaleString(),
+    source: extractDomain(url)
+  };
+  
+  submittedUrls = loadUrls();
+  submittedUrls.push(urlEntry);
+  saveUrls(submittedUrls);
+  
+  // Show success message
+  const successEl = document.getElementById('url-success');
+  successEl.textContent = '✅ URL submitted successfully! Scraped data will be available soon.';
+  successEl.classList.add('show');
+  
+  // Clear form
+  event.target.reset();
+  
+  // Hide message after 3 seconds
+  setTimeout(() => {
+    successEl.classList.remove('show');
+  }, 3000);
+  
+  console.log('Submitted URL:', urlEntry);
+}
+
+function extractDomain(url) {
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname.replace('www.', '');
+    return domain.charAt(0).toUpperCase() + domain.slice(1);
+  } catch {
+    return 'Unknown';
+  }
+}
+
+// ===== UTILITY FUNCTIONS =====
+function goHome() {
+  window.location.href = 'index.html';
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  submittedUrls = loadUrls();
+  
+  console.log('Search page loaded');
+  console.log('Total submitted URLs:', submittedUrls.length);
+});
