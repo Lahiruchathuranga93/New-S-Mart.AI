@@ -1,0 +1,305 @@
+// ===== AUTHENTICATION SYSTEM =====
+// Email/Password login and registration with API integration
+
+// ===== DATA STORAGE =====
+let users = [];
+let currentUser = null;
+
+function loadUsers() {
+  try {
+    const data = localStorage.getItem('users');
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveUsers(usersData) {
+  localStorage.setItem('users', JSON.stringify(usersData));
+}
+
+function loadCurrentUser() {
+  try {
+    const data = localStorage.getItem('currentUser');
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCurrentUser(user) {
+  if (user) {
+    localStorage.setItem('currentUser', JSON.stringify(user));
+  } else {
+    localStorage.removeItem('currentUser');
+  }
+}
+
+// ===== TAB SWITCHING =====
+function switchAuthTab(tabName) {
+  const tabs = document.querySelectorAll('.form-section');
+  const buttons = document.querySelectorAll('.tab-btn');
+  
+  tabs.forEach(tab => tab.classList.remove('active'));
+  buttons.forEach(btn => btn.classList.remove('active'));
+  
+  const activeTab = document.getElementById(tabName);
+  if (activeTab) {
+    activeTab.classList.add('active');
+  }
+  
+  const activeBtn = Array.from(buttons).find(btn => 
+    btn.textContent.toLowerCase().includes(tabName)
+  );
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+}
+
+// ===== LOGIN HANDLER =====
+function handleLogin(event) {
+  event.preventDefault();
+  
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const remember = document.getElementById('login-remember').checked;
+  
+  const errorEl = document.getElementById('login-error');
+  const successEl = document.getElementById('login-success');
+  
+  // Clear messages
+  errorEl.classList.remove('show');
+  successEl.classList.remove('show');
+  
+  // Validate
+  if (!email || !password) {
+    showError(errorEl, 'Please fill in all fields');
+    return;
+  }
+  
+  // Load users
+  users = loadUsers();
+  
+  // Check if user exists
+  const user = users.find(u => u.email === email);
+  
+  if (!user) {
+    showError(errorEl, 'Email not found. Please create an account first.');
+    return;
+  }
+  
+  // Verify password (in production, use bcrypt)
+  if (user.password !== password) {
+    showError(errorEl, 'Incorrect password. Please try again.');
+    return;
+  }
+  
+  // Login successful
+  currentUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    loginTime: new Date().toISOString(),
+    rememberMe: remember
+  };
+  
+  saveCurrentUser(currentUser);
+  
+  if (remember) {
+    localStorage.setItem('rememberEmail', email);
+  }
+  
+  showSuccess(successEl, 'Login successful! Redirecting...');
+  
+  setTimeout(() => {
+    window.location.href = 'index.html';
+  }, 1500);
+}
+
+// ===== REGISTER HANDLER =====
+function handleRegister(event) {
+  event.preventDefault();
+  
+  const name = document.getElementById('register-name').value.trim();
+  const email = document.getElementById('register-email').value.trim();
+  const phone = document.getElementById('register-phone').value.trim();
+  const password = document.getElementById('register-password').value;
+  const confirm = document.getElementById('register-confirm').value;
+  const terms = document.getElementById('register-terms').checked;
+  
+  const errorEl = document.getElementById('register-error');
+  const successEl = document.getElementById('register-success');
+  
+  // Clear messages
+  errorEl.classList.remove('show');
+  successEl.classList.remove('show');
+  
+  // Validate
+  if (!name || !email || !phone || !password || !confirm) {
+    showError(errorEl, 'Please fill in all fields');
+    return;
+  }
+  
+  if (password.length < 8) {
+    showError(errorEl, 'Password must be at least 8 characters');
+    return;
+  }
+  
+  if (password !== confirm) {
+    showError(errorEl, 'Passwords do not match');
+    return;
+  }
+  
+  if (!terms) {
+    showError(errorEl, 'You must agree to the Terms & Conditions');
+    return;
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showError(errorEl, 'Invalid email format');
+    return;
+  }
+  
+  // Load users
+  users = loadUsers();
+  
+  // Check if email already exists
+  if (users.find(u => u.email === email)) {
+    showError(errorEl, 'Email already registered. Please login instead.');
+    return;
+  }
+  
+  // Create new user
+  const newUser = {
+    id: 'user_' + Date.now(),
+    name: name,
+    email: email,
+    phone: phone,
+    password: password, // In production, hash with bcrypt
+    createdAt: new Date().toISOString(),
+    status: 'active'
+  };
+  
+  users.push(newUser);
+  saveUsers(users);
+  
+  showSuccess(successEl, 'Account created successfully! Please login.');
+  
+  // Clear form
+  event.target.reset();
+  
+  // Switch to login tab
+  setTimeout(() => {
+    switchAuthTab('login');
+  }, 1500);
+}
+
+// ===== SOCIAL LOGIN HANDLERS =====
+function loginWithGoogle() {
+  alert('Google login would integrate with Google OAuth API');
+  // In production: window.location.href = googleAuthURL;
+}
+
+function loginWithPhone() {
+  alert('Phone login would integrate with OTP service');
+  // In production: Show phone input and OTP verification
+}
+
+function signupWithGoogle() {
+  alert('Google signup would integrate with Google OAuth API');
+  // In production: window.location.href = googleAuthURL;
+}
+
+function signupWithPhone() {
+  alert('Phone signup would integrate with OTP service');
+  // In production: Show phone input and OTP verification
+}
+
+// ===== UTILITY FUNCTIONS =====
+function showError(element, message) {
+  element.textContent = '❌ ' + message;
+  element.classList.add('show');
+}
+
+function showSuccess(element, message) {
+  element.textContent = '✅ ' + message;
+  element.classList.add('show');
+}
+
+function logout() {
+  saveCurrentUser(null);
+  window.location.href = 'auth.html';
+}
+
+function checkAuth() {
+  currentUser = loadCurrentUser();
+  return currentUser !== null;
+}
+
+// ===== API MOCK FUNCTIONS =====
+async function registerUser(userData) {
+  // In production, call backend API
+  // POST /api/auth/register
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        user: userData,
+        message: 'User registered successfully'
+      });
+    }, 1000);
+  });
+}
+
+async function loginUser(email, password) {
+  // In production, call backend API
+  // POST /api/auth/login
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const user = users.find(u => u.email === email && u.password === password);
+      resolve({
+        success: !!user,
+        user: user,
+        token: user ? 'jwt_token_' + Date.now() : null
+      });
+    }, 1000);
+  });
+}
+
+async function verifyToken(token) {
+  // In production, call backend API
+  // POST /api/auth/verify
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        valid: token && token.startsWith('jwt_token_'),
+        user: currentUser
+      });
+    }, 500);
+  });
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  users = loadUsers();
+  currentUser = loadCurrentUser();
+  
+  // Load remembered email if exists
+  const rememberedEmail = localStorage.getItem('rememberEmail');
+  if (rememberedEmail) {
+    const emailInput = document.getElementById('login-email');
+    if (emailInput) {
+      emailInput.value = rememberedEmail;
+      document.getElementById('login-remember').checked = true;
+    }
+  }
+  
+  // Check if user already logged in
+  if (currentUser) {
+    // Show dashboard instead of auth page
+    console.log('User already logged in:', currentUser.name);
+  }
+});
