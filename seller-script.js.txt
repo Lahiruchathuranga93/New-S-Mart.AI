@@ -1,0 +1,313 @@
+// ===== SELLER CENTER AI AUTO-LISTING SYSTEM =====
+// Multi-platform listing automation with AI-powered details filling
+
+// ===== DATA STORAGE =====
+let sellerItems = [];
+let aiDetails = {};
+
+function loadSellerData() {
+  try {
+    const data = localStorage.getItem('sellerItems');
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSellerData(items) {
+  localStorage.setItem('sellerItems', JSON.stringify(items));
+}
+
+// ===== TAB SWITCHING =====
+function switchTab(tabName) {
+  const tabs = document.querySelectorAll('.tab-content');
+  const buttons = document.querySelectorAll('.tab-btn');
+  
+  tabs.forEach(tab => tab.classList.remove('active'));
+  buttons.forEach(btn => btn.classList.remove('active'));
+  
+  const activeTab = document.getElementById(tabName);
+  if (activeTab) {
+    activeTab.classList.add('active');
+  }
+  
+  const activeBtn = Array.from(buttons).find(btn => 
+    btn.textContent.includes(tabName.charAt(0).toUpperCase() + tabName.slice(1))
+  );
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+  
+  if (tabName === 'manage') {
+    renderItemsTable();
+  }
+}
+
+// ===== IMPORT DATA FROM CSV/JSON =====
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const content = e.target.result;
+      if (file.name.endsWith('.csv')) {
+        parseCSV(content);
+      } else if (file.name.endsWith('.json')) {
+        parseJSON(content);
+      }
+    } catch (err) {
+      alert('Error parsing file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(csv) {
+  const lines = csv.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  
+  const items = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    const item = {};
+    headers.forEach((header, idx) => {
+      item[header] = values[idx] || '';
+    });
+    items.push(item);
+  }
+  
+  sellerItems = items;
+  saveSellerData(sellerItems);
+  showSuccess('✅ ' + items.length + ' items imported!');
+  switchTab('manage');
+}
+
+function parseJSON(json) {
+  const items = JSON.parse(json);
+  sellerItems = Array.isArray(items) ? items : [items];
+  saveSellerData(sellerItems);
+  showSuccess('✅ ' + sellerItems.length + ' items imported!');
+  switchTab('manage');
+}
+
+function importJSON() {
+  const jsonText = document.getElementById('json-paste').value;
+  if (!jsonText.trim()) {
+    alert('Please paste JSON data');
+    return;
+  }
+  try {
+    parseJSON(jsonText);
+  } catch (err) {
+    alert('Invalid JSON: ' + err.message);
+  }
+}
+
+function loadSampleData() {
+  const sampleData = [
+    {
+      item_name: 'Wireless Earbuds Pro',
+      price: '2990',
+      stock: '50',
+      special_price: '1999',
+      special_price_period: '7 days',
+      image_url: 'https://via.placeholder.com/300x300?text=Earbuds',
+      competitor_link: 'https://ebay.com/search?q=wireless+earbuds'
+    },
+    {
+      item_name: 'USB-C Fast Charging Cable',
+      price: '650',
+      stock: '100',
+      special_price: '399',
+      special_price_period: '14 days',
+      image_url: 'https://via.placeholder.com/300x300?text=USB+Cable',
+      competitor_link: 'https://aliexpress.com/search?q=usb+c+cable'
+    }
+  ];
+  
+  sellerItems = sampleData;
+  saveSellerData(sellerItems);
+  showSuccess('✅ Sample data loaded! Check Manage Listings tab');
+  switchTab('manage');
+}
+
+// ===== RENDER ITEMS TABLE =====
+function renderItemsTable() {
+  const tbody = document.getElementById('items-tbody');
+  if (!tbody) return;
+  
+  sellerItems = loadSellerData();
+  
+  if (sellerItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No items imported yet</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = '';
+  sellerItems.forEach((item, idx) => {
+    const row = document.createElement('tr');
+    const aiStatus = aiDetails[item.item_name] ? '✅ Ready' : '⏳ Pending';
+    row.innerHTML = `
+      <td>${item.item_name}</td>
+      <td>Rs ${item.price}</td>
+      <td>${item.stock}</td>
+      <td>${aiStatus}</td>
+      <td>
+        <button class="action-btn edit" onclick="scrapeAndFillAI('${item.item_name}', '${item.competitor_link}')">Get AI Details</button>
+        <button class="action-btn remove" onclick="removeItem(${idx})">Remove</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// ===== AI AUTO-FILLING FROM COMPETITOR LINKS =====
+async function scrapeAndFillAI(itemName, competitorLink) {
+  if (!competitorLink) {
+    alert('No competitor link provided. Please add eBay/AliExpress/Daraz.lk link.');
+    return;
+  }
+  
+  try {
+    // Simulating AI scraping (In production, use backend API)
+    const details = await fetchAIDetails(itemName, competitorLink);
+    
+    aiDetails[itemName] = {
+      description: details.description,
+      keyFeatures: details.keyFeatures,
+      ratings: details.ratings,
+      reviews: details.reviews,
+      recommendations: details.recommendations,
+      timestamp: new Date().toLocaleString()
+    };
+    
+    showSuccess('✅ AI details populated for ' + itemName);
+    renderItemsTable();
+  } catch (error) {
+    alert('Could not fetch details: ' + error.message);
+  }
+}
+
+// ===== MOCK AI DETAILS FETCHER =====
+async function fetchAIDetails(itemName, link) {
+  // In production, this would call a backend API that:
+  // 1. Scrapes the competitor link
+  // 2. Uses AI to extract product details
+  // 3. Generates descriptions, key features, recommendations
+  
+  return {
+    description: 'Premium ' + itemName + ' with advanced features and excellent performance',
+    keyFeatures: [
+      'High-quality materials',
+      'Extended battery life',
+      'Easy connectivity',
+      'Excellent sound quality'
+    ],
+    ratings: '4.5/5',
+    reviews: '2,345 reviews',
+    recommendations: 'Great value, highly recommended by customers'
+  };
+}
+
+// ===== REMOVE ITEM =====
+function removeItem(idx) {
+  sellerItems.splice(idx, 1);
+  saveSellerData(sellerItems);
+  renderItemsTable();
+}
+
+// ===== PUBLISH TO PLATFORMS =====
+async function publishListings() {
+  if (sellerItems.length === 0) {
+    alert('No items to publish');
+    return;
+  }
+  
+  const platforms = [];
+  if (document.getElementById('platform-daraz')?.checked) platforms.push('Daraz');
+  if (document.getElementById('platform-ebay')?.checked) platforms.push('eBay');
+  if (document.getElementById('platform-aliexpress')?.checked) platforms.push('AliExpress');
+  
+  const action = document.querySelector('input[name="action"]:checked')?.value || 'publish';
+  
+  if (platforms.length === 0) {
+    alert('Please select at least one platform');
+    return;
+  }
+  
+  try {
+    for (const platform of platforms) {
+      await publishToPlatform(platform, action);
+    }
+    
+    showSuccess('🚀 Listings ' + (action === 'publish' ? 'published' : 'saved as draft') + ' successfully!');
+    alert('Items ' + (action === 'publish' ? 'published' : 'saved as draft') + ' to: ' + platforms.join(', '));
+  } catch (error) {
+    alert('Publish failed: ' + error.message);
+  }
+}
+
+// ===== MOCK PLATFORM PUBLISHER =====
+async function publishToPlatform(platform, action) {
+  // In production, this would:
+  // 1. Connect to Daraz, eBay, or AliExpress APIs
+  // 2. Format product data for each platform
+  // 3. Handle image uploads
+  // 4. Apply pricing and promotional details
+  // 5. Publish or save as draft
+  
+  console.log('Publishing to ' + platform + ' (' + action + ')');
+  
+  for (const item of sellerItems) {
+    const payload = {
+      title: item.item_name,
+      price: item.price,
+      special_price: item.special_price || null,
+      special_price_period: item.special_price_period || null,
+      stock: item.stock,
+      description: aiDetails[item.item_name]?.description || 'Product description',
+      image_url: item.image_url,
+      platform: platform,
+      action: action,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Mock API call
+    console.log('Payload:', payload);
+  }
+}
+
+// ===== UTILITY FUNCTIONS =====
+function showSuccess(message) {
+  const msgEl = document.getElementById('success-msg');
+  if (msgEl) {
+    msgEl.textContent = message;
+    msgEl.style.display = 'block';
+    setTimeout(() => {
+      msgEl.style.display = 'none';
+    }, 3000);
+  }
+}
+
+function goHome() {
+  window.location.href = 'index.html';
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  sellerItems = loadSellerData();
+  
+  // Set up event listeners
+  const importBtn = document.querySelector('[onclick*="importJSON"]');
+  if (importBtn) {
+    importBtn.addEventListener('click', importJSON);
+  }
+  
+  // Footer year
+  const yearEl = document.getElementById('year');
+  if (yearEl) {
+    yearEl.textContent = new Date().getFullYear();
+  }
+});
